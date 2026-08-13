@@ -1,0 +1,33 @@
+name: FALStudio
+options:
+  bundleIdPrefix: com.seanyu
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  PRODUCT_NAME: "FAL Studio"
+  MARKETING_VERSION: "1.1"
+  CURRENT_PROJECT_VERSION: "1"
+  SWIFT_VERSION: "6.0"
+  SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+  SWIFT_DEFAULT_ACTOR_ISOLATION: "MainActor"
+  CODE_SIGN_IDENTITY: "-"
+  CODE_SIGN_STYLE: Manual
+  DEVELOPMENT_TEAM: ""
+  ENABLE_APP_SANDBOX: "NO"
+  ENABLE_HARDENED_RUNTIME: "NO"
+targets:
+  FALStudio:
+    type: application
+    platform: macOS
+    sources: [Sources]
+    scheme: {}
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: FAL Studio
+        CFBundleName: FAL Studio
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSApplicationCategoryType: public.app-category.graphics-design
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
