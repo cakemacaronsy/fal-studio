@@ -4,10 +4,13 @@ import Observation
 import UserNotifications
 
 /// Keeps the installed app up to date from two sources:
-/// 1. The local dev build folder (default ~/Desktop/FAL Studio/build/…) —
-///    one click replaces the installed copy and relaunches.
-/// 2. Optionally, GitHub Releases (Settings → repo "owner/name") — for copies
-///    of the app running on other people's Macs.
+/// 1. GitHub Releases (Settings → repo "owner/name") — how every normal
+///    install updates: it opens the new DMG in the browser.
+/// 2. A local dev build, ONLY when this machine actually built the app
+///    (build.sh records its output path) AND the running copy sits in a
+///    writable /Applications — one click replaces it in place and relaunches.
+///    Anything else (running from the DMG, ~/Downloads, or a translocated
+///    quarantine path) reports a clear instruction instead of self-destructing.
 @Observable
 final class Updater {
     static let shared = Updater()
@@ -31,19 +34,56 @@ final class Updater {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
     }
 
-    var devBuildPath: String {
-        if let override = UserDefaults.standard.string(forKey: "devBuildPath") {
+    /// Where this machine's own build lands, if it builds at all. Only a
+    /// path recorded by scripts/build.sh (or an explicit override) counts —
+    /// there is deliberately NO guessed fallback, so a machine that never
+    /// built the app never points at a stale folder.
+    var devBuildPath: String? {
+        if let override = UserDefaults.standard.string(forKey: "devBuildPath"),
+           !override.isEmpty {
             return override
         }
-        // build.sh records its output path here, so the updater keeps working
-        // even when the project folder moves.
         let recorded = NSHomeDirectory()
             + "/Library/Application Support/FAL Studio/dev_build_path.txt"
-        if let path = try? String(contentsOfFile: recorded, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty {
-            return path
+        guard let path = try? String(contentsOfFile: recorded, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
+            return nil
         }
-        return NSHomeDirectory() + "/Desktop/FAL Studio/build/Build/Products/Release/FAL Studio.app"
+        return path
+    }
+
+    /// True when the running bundle is somewhere we may safely replace:
+    /// a writable /Applications (system or user), not the DMG, not a
+    /// translocated quarantine path.
+    var canSelfReplace: Bool {
+        let path = Bundle.main.bundlePath
+        guard !isTranslocated else { return false }
+        let inApplications = path.hasPrefix("/Applications/")
+            || path.hasPrefix(NSHomeDirectory() + "/Applications/")
+        guard inApplications else { return false }
+        let parent = Bundle.main.bundleURL.deletingLastPathComponent().path
+        return FileManager.default.isWritableFile(atPath: parent)
+    }
+
+    /// macOS App Translocation runs quarantined unsigned apps from a random
+    /// read-only path; self-update is impossible from there.
+    var isTranslocated: Bool {
+        let path = Bundle.main.bundlePath
+        return path.contains("/AppTranslocation/") || path.hasPrefix("/private/var/folders/")
+    }
+
+    /// Set when the running copy can't update itself, so the UI can say why.
+    var installLocationAdvice: String? {
+        if isTranslocated {
+            return tr("Move FAL Studio into your Applications folder to enable updates (it is currently running from a temporary quarantine copy).",
+                      "請將 FAL Studio 移到「應用程式」資料夾才能更新（目前是從暫存的隔離副本執行）。")
+        }
+        if !Bundle.main.bundlePath.hasPrefix("/Applications/")
+            && !Bundle.main.bundlePath.hasPrefix(NSHomeDirectory() + "/Applications/") {
+            return tr("Drag FAL Studio into your Applications folder to enable in-place updates.",
+                      "請將 FAL Studio 拖到「應用程式」資料夾，才能就地更新。")
+        }
+        return nil
     }
 
     /// Defaults to the project's public repo so every downloaded copy
@@ -85,10 +125,12 @@ final class Updater {
         availability = .upToDate
     }
 
-    /// A newer build in the dev folder than the running app (skipped when the
-    /// running app IS the dev build).
+    /// A newer build in this machine's own build folder. Requires: a recorded
+    /// dev path, a replaceable install location, and a different bundle than
+    /// the one running.
     private func localUpdate() -> Availability? {
-        let devURL = URL(fileURLWithPath: devBuildPath)
+        guard canSelfReplace, let devPath = devBuildPath else { return nil }
+        let devURL = URL(fileURLWithPath: devPath)
         guard FileManager.default.fileExists(atPath: devURL.path),
               Bundle.main.bundleURL.standardizedFileURL != devURL.standardizedFileURL,
               let devBundle = Bundle(url: devURL),
@@ -141,15 +183,38 @@ final class Updater {
 
     // MARK: Apply
 
-    /// Replace the running app with the dev build and relaunch.
+    /// Replace the running app with this machine's dev build and relaunch.
+    /// Copies to a staging path first and only swaps if that succeeds, so a
+    /// failure can never leave the user with no app at all.
     func applyLocalUpdate() {
+        guard canSelfReplace else {
+            lastError = installLocationAdvice
+                ?? tr("This copy of FAL Studio can't update itself in place.",
+                      "此份 FAL Studio 無法就地更新。")
+            return
+        }
+        guard let dev = devBuildPath else {
+            lastError = tr("No local build found on this Mac.", "這台 Mac 上找不到本機建置版本。")
+            return
+        }
         let installed = Bundle.main.bundlePath
-        let dev = devBuildPath
+        let staging = installed + ".new"
+        let backup = installed + ".old"
+        // Staged swap: copy → move old aside → move new in → clean up.
+        // If any step fails, restore the backup and reopen whatever survives.
         let script = """
+        set -e
         sleep 0.7
-        rm -rf "\(installed)"
-        cp -R "\(dev)" "\(installed)"
-        xattr -dr com.apple.quarantine "\(installed)" 2>/dev/null
+        rm -rf "\(staging)" "\(backup)"
+        cp -R "\(dev)" "\(staging)"
+        mv "\(installed)" "\(backup)"
+        if ! mv "\(staging)" "\(installed)"; then
+            mv "\(backup)" "\(installed)"
+            open "\(installed)"
+            exit 1
+        fi
+        rm -rf "\(backup)"
+        xattr -dr com.apple.quarantine "\(installed)" 2>/dev/null || true
         open "\(installed)"
         """
         let process = Process()

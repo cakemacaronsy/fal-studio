@@ -61,8 +61,9 @@ nonisolated enum KeychainStore {
     }
 
     /// The key to use for API calls, in priority order: FAL_KEY env var →
-    /// saved key file (Settings) → the fal skill's .env file, mirroring the
-    /// Python scripts so the app works without re-entering the key.
+    /// saved key file (Settings) → an optional developer convenience: the fal
+    /// Claude-skill .env file, if this machine happens to have one. That last
+    /// path simply doesn't exist on other machines, where Settings is the way.
     static var effectiveKey: String? {
         if let env = ProcessInfo.processInfo.environment["FAL_KEY"],
            !env.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -74,7 +75,7 @@ nonisolated enum KeychainStore {
         return dotEnvKey()
     }
 
-    /// Parse FAL_KEY from the same .env file the fal skill scripts use.
+    /// Parse FAL_KEY from the fal skill's .env, when present (dev convenience).
     private static func dotEnvKey() -> String? {
         let path = NSHomeDirectory() + "/.claude/skills/fal/.env"
         guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }

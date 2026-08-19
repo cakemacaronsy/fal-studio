@@ -122,6 +122,11 @@ struct GeneralSettingsView: View {
                     }
                 }
             }
+            if let advice = updater.installLocationAdvice {
+                Label(advice, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
             if let error = updater.lastError {
                 Text(error)
                     .font(.caption)
@@ -130,8 +135,8 @@ struct GeneralSettingsView: View {
         } header: {
             Text(tr("Updates", "更新"))
         } footer: {
-            Text(tr("Checks your local build folder first, then GitHub Releases if a repo is set.",
-                    "先檢查本機建置資料夾，若有設定儲存庫再檢查 GitHub Releases。"))
+            Text(tr("New versions come from this repo's GitHub Releases. Keep FAL Studio in your Applications folder so updates work.",
+                    "新版本來自此儲存庫的 GitHub Releases。請將 FAL Studio 放在「應用程式」資料夾，更新才能正常運作。"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
