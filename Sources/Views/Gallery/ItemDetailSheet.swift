@@ -32,7 +32,18 @@ struct ItemDetailSheet: View {
     private var mediaPane: some View {
         if let url = library.mediaFileURL(for: item) {
             if item.kind == .video {
-                VideoPlayer(player: playerFor(url))
+                ZStack {
+                    if let player {
+                        PlayerView(player: player)
+                    } else {
+                        ProgressView()
+                    }
+                }
+                .task(id: item.id) {
+                    if player == nil {
+                        player = AVPlayer(url: url)
+                    }
+                }
             } else if let image = NSImage(contentsOf: url) {
                 Image(nsImage: image)
                     .resizable()
@@ -47,15 +58,8 @@ struct ItemDetailSheet: View {
     }
 
     private var missingMedia: some View {
-        Text("Media file missing")
+        Text(tr("Media file missing", "找不到媒體檔案"))
             .foregroundStyle(.secondary)
-    }
-
-    private func playerFor(_ url: URL) -> AVPlayer {
-        if let player { return player }
-        let newPlayer = AVPlayer(url: url)
-        DispatchQueue.main.async { player = newPlayer }
-        return newPlayer
     }
 
     // MARK: Metadata
@@ -133,6 +137,19 @@ struct ItemDetailSheet: View {
             Divider()
 
             VStack(spacing: 8) {
+                if item.kind == .image, let url = library.mediaFileURL(for: item) {
+                    Button {
+                        draft.makeVideo(from: url)
+                        dismiss()
+                    } label: {
+                        Label(tr("Make video from this image", "一鍵轉成影片"),
+                              systemImage: "video.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .controlSize(.large)
+                    .buttonStyle(.borderedProminent)
+                }
+
                 Button {
                     draft.load(item: item,
                                refURLs: library.refFileURLs(for: item),

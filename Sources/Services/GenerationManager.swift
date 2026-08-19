@@ -249,7 +249,8 @@ final class GenerationManager {
     // MARK: Seedance moderation fallback
 
     nonisolated private static func isSeedanceImageToVideo(_ spec: ModelSpec) -> Bool {
-        spec.endpoint.contains("seedance-2.0") && spec.endpoint.hasSuffix("image-to-video")
+        // Covers Seedance 2.0 and 2.5 — both run the photorealistic-face input filter.
+        spec.endpoint.contains("seedance-2") && spec.endpoint.hasSuffix("image-to-video")
     }
 
     private static let seedreamEditCost = 0.135

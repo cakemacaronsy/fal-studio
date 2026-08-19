@@ -49,8 +49,8 @@ struct GeneralSettingsView: View {
             } header: {
                 Text(tr("FAL API Key", "FAL API 金鑰"))
             } footer: {
-                Text(tr("Stored in your macOS keychain. Get a key at fal.ai → Dashboard → Keys.",
-                        "儲存在 macOS 鑰匙圈。金鑰請到 fal.ai → Dashboard → Keys 取得。"))
+                Text(tr("Stored in a private file only your account can read. Get a key at fal.ai → Dashboard → Keys.",
+                        "儲存在僅你的帳號可讀的私有檔案。金鑰請到 fal.ai → Dashboard → Keys 取得。"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

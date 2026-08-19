@@ -7,6 +7,10 @@ import Observation
 final class LibraryStore {
     private(set) var items: [GalleryItem] = []
 
+    /// When this app session started — the gallery groups older works
+    /// under "Past generations".
+    let launchedAt = Date()
+
     let rootURL: URL
     let mediaURL: URL
     let thumbnailsURL: URL

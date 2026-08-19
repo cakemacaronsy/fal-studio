@@ -73,6 +73,11 @@ nonisolated struct CustomModel: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+nonisolated struct ModelChoice: Identifiable, Sendable {
+    let id: String
+    let displayName: String
+}
+
 /// Merges the static catalog with the user's custom models and persists the
 /// custom list to Application Support/FAL Studio/custom_models.json.
 @Observable
@@ -99,6 +104,18 @@ final class ModelStore {
         ModelCatalog.models(for: kind) + customModels
             .filter { $0.kind == kind }
             .compactMap { $0.toSpec() }
+    }
+
+    /// Picker entries: ONE per model family (variant endpoints resolve from
+    /// the provided reference images), plus the user's custom models.
+    func choices(for kind: MediaKind) -> [ModelChoice] {
+        ModelCatalog.families
+            .filter { $0.kind == kind }
+            .map { ModelChoice(id: $0.id, displayName: $0.displayName) }
+        + customModels
+            .filter { $0.kind == kind }
+            .map { ModelChoice(id: $0.specID,
+                               displayName: $0.displayName.isEmpty ? $0.endpoint : $0.displayName) }
     }
 
     func spec(for id: String) -> ModelSpec? {

@@ -32,8 +32,18 @@ final class Updater {
     }
 
     var devBuildPath: String {
-        UserDefaults.standard.string(forKey: "devBuildPath")
-            ?? (NSHomeDirectory() + "/Desktop/FAL Studio/build/Build/Products/Release/FAL Studio.app")
+        if let override = UserDefaults.standard.string(forKey: "devBuildPath") {
+            return override
+        }
+        // build.sh records its output path here, so the updater keeps working
+        // even when the project folder moves.
+        let recorded = NSHomeDirectory()
+            + "/Library/Application Support/FAL Studio/dev_build_path.txt"
+        if let path = try? String(contentsOfFile: recorded, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty {
+            return path
+        }
+        return NSHomeDirectory() + "/Desktop/FAL Studio/build/Build/Products/Release/FAL Studio.app"
     }
 
     var githubRepo: String {

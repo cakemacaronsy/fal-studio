@@ -80,8 +80,12 @@ struct GalleryCardView: View {
             if isHovering {
                 HStack(spacing: 6) {
                     if item.kind == .image, let url = library.mediaFileURL(for: item) {
+                        overlayButton("video.circle.fill",
+                                      help: tr("Make video from this image", "一鍵轉成影片")) {
+                            draft.makeVideo(from: url)
+                        }
                         overlayButton("photo.badge.arrow.down.fill",
-                                      help: tr("Use as reference / start frame", "作為參考圖／起始畫格")) {
+                                      help: tr("Use as reference image", "作為參考圖")) {
                             draft.useAsReference(fileURL: url)
                         }
                     }

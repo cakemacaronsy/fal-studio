@@ -46,7 +46,11 @@ nonisolated enum PayloadBuilder {
 
     /// Port of fal_generate.py seedream_image_size(): known ratios map to presets,
     /// anything else becomes a custom size with longest edge 2048 (min edge 1024).
+    /// GPT Image 2 uses the same preset names and additionally accepts "auto".
     static func seedreamImageSize(aspect: String) -> JSONValue {
+        if aspect == "auto" {
+            return .string("auto")
+        }
         let presets: [String: String] = [
             "16:9": "landscape_16_9",
             "9:16": "portrait_16_9",

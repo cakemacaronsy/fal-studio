@@ -16,7 +16,7 @@ struct ControlPanelView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     modelPicker
 
-                    if draft.spec.refImages != .none {
+                    if draft.maxRefImages > 0 {
                         ReferenceImageDropZone(draft: draft)
                     }
 
@@ -43,8 +43,8 @@ struct ControlPanelView: View {
                 get: { draft.modelID },
                 set: { draft.selectModel($0) }
             )) {
-                ForEach(ModelStore.shared.models(for: draft.mode)) { spec in
-                    Text(spec.displayName).tag(spec.id)
+                ForEach(ModelStore.shared.choices(for: draft.mode)) { choice in
+                    Text(choice.displayName).tag(choice.id)
                 }
             }
             .labelsHidden()
@@ -100,7 +100,8 @@ struct ControlPanelView: View {
             }
             .toggleStyle(.button)
             .controlSize(.small)
-            .help(tr("Improve as a structured JSON prompt", "以結構化 JSON 格式優化提示詞"))
+            .help(tr("Structured mode: use this model's official prompt template",
+                     "結構化模式：使用此模型官方的提示詞模板"))
 
             if draft.promptBackup != nil {
                 Button {
@@ -308,18 +309,33 @@ struct GenerateBar: View {
         if draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return tr("Describe what you want to generate.", "先描述你想生成的內容。")
         }
-        switch draft.spec.refImages {
-        case .startEnd where draft.refImages.isEmpty:
-            return tr("Drop a start-frame image.", "請拖入起始畫格圖片。")
-        case .multiple where draft.refImages.isEmpty:
-            return tr("Drop at least one reference image.", "請至少拖入一張參考圖。")
-        default:
-            return nil
+        if draft.endImage != nil && draft.refImages.isEmpty {
+            return tr("An end frame needs a start frame too.", "設定結尾畫格前，請先加入起始畫格。")
         }
+        // Families always have a no-reference variant; only custom models can
+        // strictly require reference images.
+        if ModelCatalog.family(id: draft.modelID) == nil {
+            switch draft.spec.refImages {
+            case .startEnd where draft.refImages.isEmpty:
+                return tr("Drop a start-frame image.", "請拖入起始畫格圖片。")
+            case .multiple where draft.refImages.isEmpty:
+                return tr("Drop at least one reference image.", "請至少拖入一張參考圖。")
+            default:
+                break
+            }
+        }
+        return nil
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if generator.mockMode {
+                Label(tr("MOCK MODE — placeholders only, no real generation. Turn off in Settings.",
+                         "模擬模式 — 只會產生占位圖，不會真正生成。請到設定關閉。"),
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
             if let reason = blockedReason {
                 Text(reason)
                     .font(.caption)
@@ -338,9 +354,15 @@ struct GenerateBar: View {
                 }
                 Spacer()
                 Button {
+                    var prompt = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if draft.hasAnnotatedRefs {
+                        // The reference image carries Gemini-style red markup;
+                        // tell the model to obey it and keep it out of the result.
+                        prompt += "\n\nThe reference image contains red markup (arrows, circles, sketch lines, handwritten notes). Treat these markings as precise editing instructions for the marked areas. Do not include any of the red markup in the final output."
+                    }
                     generator.start(
                         spec: draft.spec,
-                        prompt: draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines),
+                        prompt: prompt,
                         values: draft.paramValues,
                         refDatas: draft.refImages.map(\.encoded.data),
                         endRefData: draft.endImage?.encoded.data

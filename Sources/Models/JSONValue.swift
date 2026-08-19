@@ -9,10 +9,12 @@ nonisolated enum JSONValue: Codable, Hashable, Sendable {
     case bool(Bool)
     case array([JSONValue])
     case object([String: JSONValue])
+    case null
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if let v = try? container.decode(Bool.self) { self = .bool(v) }
+        if container.decodeNil() { self = .null }
+        else if let v = try? container.decode(Bool.self) { self = .bool(v) }
         else if let v = try? container.decode(Int.self) { self = .int(v) }
         else if let v = try? container.decode(Double.self) { self = .double(v) }
         else if let v = try? container.decode(String.self) { self = .string(v) }
@@ -32,6 +34,7 @@ nonisolated enum JSONValue: Codable, Hashable, Sendable {
         case .bool(let v): try container.encode(v)
         case .array(let v): try container.encode(v)
         case .object(let v): try container.encode(v)
+        case .null: try container.encodeNil()
         }
     }
 
@@ -45,6 +48,8 @@ nonisolated enum JSONValue: Codable, Hashable, Sendable {
         case .array(let v): return v.map(\.displayString).joined(separator: ", ")
         case .object(let v):
             return v.keys.sorted().map { "\($0): \(v[$0]!.displayString)" }.joined(separator: ", ")
+        case .null:
+            return "—"
         }
     }
 

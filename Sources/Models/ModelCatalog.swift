@@ -66,6 +66,7 @@ nonisolated enum ModelCatalog {
     ]
     private static let seedanceAspects = ["auto", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]
     private static let seedanceDurations = ["auto"] + (4...15).map(String.init)
+    private static let seedance25Durations = ["auto"] + (4...30).map(String.init)
     private static let minimaxAspects = ["16:9", "21:9", "4:3", "1:1", "3:4", "9:16"]
     private static let minimaxDurations = (5...15).map(String.init)
     private static let klingDurations = (3...15).map(String.init)
@@ -170,6 +171,67 @@ nonisolated enum ModelCatalog {
             pricing: Pricing.seedream
         ),
 
+        ModelSpec(
+            id: "gpt-image", displayName: "GPT Image 2 (OpenAI)",
+            kind: .image, endpoint: "openai/gpt-image-2", queued: false,
+            fixedPayload: ["output_format": .string("png")],
+            parameters: [
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: ["auto", "16:9", "9:16", "4:3", "3:4", "1:1"],
+                                            defaultValue: "auto"),
+                              encoding: .seedreamImageSize),
+                ParameterSpec(key: "quality", label: "Quality",
+                              kind: .choice(options: ["auto", "low", "medium", "high"], defaultValue: "high")),
+                ParameterSpec(key: "num_images", label: "Images", kind: .stepper(range: 1...4, defaultValue: 1)),
+            ],
+            pricing: Pricing.gptImage
+        ),
+        ModelSpec(
+            id: "gpt-image-edit", displayName: "GPT Image 2 Edit (OpenAI)",
+            kind: .image, endpoint: "openai/gpt-image-2/edit", queued: false,
+            refImages: .multiple(max: 16), refPayloadKey: "image_urls",
+            fixedPayload: ["output_format": .string("png")],
+            parameters: [
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: ["auto", "16:9", "9:16", "4:3", "3:4", "1:1"],
+                                            defaultValue: "auto"),
+                              encoding: .seedreamImageSize),
+                ParameterSpec(key: "quality", label: "Quality",
+                              kind: .choice(options: ["auto", "low", "medium", "high"], defaultValue: "high")),
+                ParameterSpec(key: "num_images", label: "Images", kind: .stepper(range: 1...4, defaultValue: 1)),
+            ],
+            pricing: Pricing.gptImage
+        ),
+
+        // ---- Video: Seedance 2.5 (queue, up to 30 s) ----
+        ModelSpec(
+            id: "seedance-25", displayName: "Seedance 2.5",
+            kind: .video, endpoint: "bytedance/seedance-2.5/text-to-video", queued: true,
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["480p", "720p"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: seedance25Durations, defaultValue: "auto")),
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: seedanceAspects, defaultValue: "auto")),
+                ParameterSpec(key: "generate_audio", label: "Audio", kind: .toggle(defaultValue: true)),
+            ],
+            pricing: Pricing.seedance25
+        ),
+        ModelSpec(
+            id: "seedance-25-i2v", displayName: "Seedance 2.5 · Image to Video",
+            kind: .video, endpoint: "bytedance/seedance-2.5/image-to-video", queued: true,
+            refImages: .startEnd, refPayloadKey: "image_url", endImagePayloadKey: "end_image_url",
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["480p", "720p"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: seedance25Durations, defaultValue: "auto")),
+                ParameterSpec(key: "generate_audio", label: "Audio", kind: .toggle(defaultValue: true)),
+            ],
+            pricing: Pricing.seedance25
+        ),
+
         // ---- Video: Seedance 2.0 (queue) ----
         ModelSpec(
             id: "seedance", displayName: "Seedance 2.0",
@@ -260,6 +322,124 @@ nonisolated enum ModelCatalog {
             parameters: klingParams(includeAspect: false),
             pricing: Pricing.kling
         ),
+
+        // ---- Video: Grok Imagine Video 1.5 (queue) ----
+        ModelSpec(
+            id: "grok-video", displayName: "Grok Imagine Video",
+            kind: .video, endpoint: "xai/grok-imagine-video/text-to-video", queued: true,
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["480p", "720p"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: (6...15).map(String.init), defaultValue: "6"),
+                              encoding: .stringToInt),
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"],
+                                            defaultValue: "16:9")),
+            ],
+            pricing: Pricing.grokVideo
+        ),
+        ModelSpec(
+            id: "grok-video-i2v", displayName: "Grok Imagine Video · Image to Video",
+            kind: .video, endpoint: "xai/grok-imagine-video/image-to-video", queued: true,
+            refImages: .startEnd, refPayloadKey: "image_url",
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["480p", "720p"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: (6...15).map(String.init), defaultValue: "6"),
+                              encoding: .stringToInt),
+            ],
+            pricing: Pricing.grokVideo
+        ),
+
+        // ---- Video: Wan 2.7 (queue) ----
+        ModelSpec(
+            id: "wan", displayName: "Wan 2.7",
+            kind: .video, endpoint: "fal-ai/wan/v2.7/text-to-video", queued: true,
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["720p", "1080p"], defaultValue: "1080p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: (2...15).map(String.init), defaultValue: "5"),
+                              encoding: .stringToInt),
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+                                            defaultValue: "16:9")),
+            ],
+            pricing: Pricing.wan
+        ),
+        ModelSpec(
+            id: "wan-i2v", displayName: "Wan 2.7 · Image to Video",
+            kind: .video, endpoint: "fal-ai/wan/v2.7/image-to-video", queued: true,
+            refImages: .startEnd, refPayloadKey: "image_url", endImagePayloadKey: "end_image_url",
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["720p", "1080p"], defaultValue: "1080p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: (2...15).map(String.init), defaultValue: "5"),
+                              encoding: .stringToInt),
+            ],
+            pricing: Pricing.wan
+        ),
+
+        // ---- Video: LTX-2.5 (Lightricks, queue) ----
+        ModelSpec(
+            id: "ltx-pro", displayName: "LTX-2.5 Pro",
+            kind: .video, endpoint: "lightricks/ltx-2.5/text-to-video/pro", queued: true,
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["720p", "1080p"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: ["auto", "6", "8", "10"], defaultValue: "auto")),
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: ["16:9", "9:16"], defaultValue: "16:9")),
+                ParameterSpec(key: "generate_audio", label: "Audio", kind: .toggle(defaultValue: true)),
+            ],
+            pricing: Pricing.ltxPro
+        ),
+        ModelSpec(
+            id: "ltx-pro-i2v", displayName: "LTX-2.5 Pro · Image to Video",
+            kind: .video, endpoint: "lightricks/ltx-2.5/image-to-video/pro", queued: true,
+            refImages: .startEnd, refPayloadKey: "image_url", endImagePayloadKey: "end_image_url",
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["720p", "1080p"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: ["auto", "6", "8", "10"], defaultValue: "auto")),
+                ParameterSpec(key: "generate_audio", label: "Audio", kind: .toggle(defaultValue: true)),
+            ],
+            pricing: Pricing.ltxPro
+        ),
+        ModelSpec(
+            id: "ltx-fast", displayName: "LTX-2.5 Fast",
+            kind: .video, endpoint: "lightricks/ltx-2.5/text-to-video/fast", queued: true,
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["720p", "1080p", "1440p", "4k"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: ["auto", "6", "8", "10", "12", "14", "16", "18", "20"],
+                                            defaultValue: "auto")),
+                ParameterSpec(key: "aspect_ratio", label: "Aspect",
+                              kind: .choice(options: ["16:9", "9:16"], defaultValue: "16:9")),
+                ParameterSpec(key: "generate_audio", label: "Audio", kind: .toggle(defaultValue: true)),
+            ],
+            pricing: Pricing.ltxFast
+        ),
+        ModelSpec(
+            id: "ltx-fast-i2v", displayName: "LTX-2.5 Fast · Image to Video",
+            kind: .video, endpoint: "lightricks/ltx-2.5/image-to-video/fast", queued: true,
+            refImages: .startEnd, refPayloadKey: "image_url", endImagePayloadKey: "end_image_url",
+            parameters: [
+                ParameterSpec(key: "resolution", label: "Resolution",
+                              kind: .choice(options: ["720p", "1080p", "1440p", "4k"], defaultValue: "720p")),
+                ParameterSpec(key: "duration", label: "Duration",
+                              kind: .choice(options: ["auto", "6", "8", "10", "12", "14", "16", "18", "20"],
+                                            defaultValue: "auto")),
+                ParameterSpec(key: "generate_audio", label: "Audio", kind: .toggle(defaultValue: true)),
+            ],
+            pricing: Pricing.ltxFast
+        ),
     ]
 
     static func models(for kind: MediaKind) -> [ModelSpec] {
@@ -273,4 +453,63 @@ nonisolated enum ModelCatalog {
     static func defaultModelID(for kind: MediaKind) -> String {
         kind == .image ? "grok" : "seedance"
     }
+
+    // MARK: Families — one picker entry per model; the endpoint variant
+    // (text-to-x / image-to-video / edit / reference) resolves automatically
+    // from the reference images the user provides.
+
+    static let families: [ModelFamily] = [
+        ModelFamily(id: "fam-grok", displayName: "Grok Imagine v2", kind: .image,
+                    baseSpecID: "grok", multipleSpecID: "grok-edit"),
+        ModelFamily(id: "fam-seedream", displayName: "Seedream 5.0 Pro", kind: .image,
+                    baseSpecID: "seedream", multipleSpecID: "seedream-edit"),
+        ModelFamily(id: "fam-gpt", displayName: "GPT Image 2 (ChatGPT)", kind: .image,
+                    baseSpecID: "gpt-image", multipleSpecID: "gpt-image-edit"),
+        ModelFamily(id: "fam-seedance25", displayName: "Seedance 2.5", kind: .video,
+                    baseSpecID: "seedance-25", startEndSpecID: "seedance-25-i2v"),
+        ModelFamily(id: "fam-seedance", displayName: "Seedance 2.0", kind: .video,
+                    baseSpecID: "seedance", startEndSpecID: "seedance-i2v",
+                    multipleSpecID: "seedance-ref"),
+        ModelFamily(id: "fam-seedance-fast", displayName: "Seedance 2.0 Fast", kind: .video,
+                    baseSpecID: "seedance-fast", startEndSpecID: "seedance-fast-i2v",
+                    multipleSpecID: "seedance-fast-ref"),
+        ModelFamily(id: "fam-minimax", displayName: "MiniMax H3", kind: .video,
+                    baseSpecID: "minimax", startEndSpecID: "minimax-i2v",
+                    multipleSpecID: "minimax-ref"),
+        ModelFamily(id: "fam-kling", displayName: "Kling v3 Pro", kind: .video,
+                    baseSpecID: "kling", startEndSpecID: "kling-i2v"),
+        ModelFamily(id: "fam-grok-video", displayName: "Grok Imagine Video", kind: .video,
+                    baseSpecID: "grok-video", startEndSpecID: "grok-video-i2v"),
+        ModelFamily(id: "fam-wan", displayName: "Wan 2.7", kind: .video,
+                    baseSpecID: "wan", startEndSpecID: "wan-i2v"),
+        ModelFamily(id: "fam-ltx-pro", displayName: "LTX-2.5 Pro", kind: .video,
+                    baseSpecID: "ltx-pro", startEndSpecID: "ltx-pro-i2v"),
+        ModelFamily(id: "fam-ltx-fast", displayName: "LTX-2.5 Fast", kind: .video,
+                    baseSpecID: "ltx-fast", startEndSpecID: "ltx-fast-i2v"),
+    ]
+
+    static func family(id: String) -> ModelFamily? {
+        families.first { $0.id == id }
+    }
+
+    /// Map a concrete spec id (e.g. "seedance-i2v" from an old gallery item)
+    /// back to its family for the picker.
+    static func familyID(forSpecID specID: String) -> String? {
+        families.first {
+            $0.baseSpecID == specID || $0.startEndSpecID == specID || $0.multipleSpecID == specID
+        }?.id
+    }
+
+    static func defaultFamilyID(for kind: MediaKind) -> String {
+        kind == .image ? "fam-grok" : "fam-seedance"
+    }
+}
+
+nonisolated struct ModelFamily: Identifiable, Sendable {
+    let id: String
+    let displayName: String
+    let kind: MediaKind
+    let baseSpecID: String            // no reference images
+    var startEndSpecID: String? = nil // start frame (+ optional end frame)
+    var multipleSpecID: String? = nil // multiple references / edit
 }

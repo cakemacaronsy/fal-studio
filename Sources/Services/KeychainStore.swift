@@ -1,69 +1,94 @@
 import Foundation
 import Security
 
-/// Stores the FAL API key as a generic password in the login keychain.
-/// Note: because the app is ad-hoc signed, each rebuild produces a new code
-/// signature and macOS shows one "wants to use your keychain" prompt — click
-/// Always Allow. (A chmod-600 file under Application Support would avoid the
-/// prompt at the cost of storing the key in plain text; not implemented.)
+/// Stores the FAL API key in a private file (chmod 600) under Application
+/// Support instead of the keychain: ad-hoc-signed dev builds get a new code
+/// signature every rebuild, which made macOS show a keychain permission
+/// prompt after each update. A 600-permission file matches the security of
+/// the fal skill's .env (where the key already lives in plain text) with
+/// zero prompts.
 nonisolated enum KeychainStore {
-    private static let service = "FAL Studio"
-    private static let account = "FAL_KEY"
+    private static var keyFileURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("FAL Studio", isDirectory: true)
+            .appendingPathComponent("fal_key")
+    }
 
     static func load() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data,
-              let key = String(data: data, encoding: .utf8), !key.isEmpty else {
-            return nil
+        // One-time migration: drain any old keychain entry into the file
+        // (delete does not trigger the permission prompt; reading would,
+        // so we only migrate silently when the file already answers).
+        if let key = try? String(contentsOf: keyFileURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty {
+            deleteLegacyKeychainItem()
+            return key
         }
-        return key
+        return nil
     }
 
     @discardableResult
     static func save(_ key: String) -> Bool {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            delete()
+        if trimmed.isEmpty {
+            try? FileManager.default.removeItem(at: keyFileURL)
             return true
         }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        let attributes: [String: Any] = [kSecValueData as String: Data(trimmed.utf8)]
-        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if updateStatus == errSecItemNotFound {
-            let addQuery = query.merging(attributes) { _, new in new }
-            return SecItemAdd(addQuery as CFDictionary, nil) == errSecSuccess
+        do {
+            try FileManager.default.createDirectory(
+                at: keyFileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(trimmed.utf8).write(to: keyFileURL, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600],
+                                                  ofItemAtPath: keyFileURL.path)
+            deleteLegacyKeychainItem()
+            return true
+        } catch {
+            return false
         }
-        return updateStatus == errSecSuccess
     }
 
     static func delete() {
+        try? FileManager.default.removeItem(at: keyFileURL)
+        deleteLegacyKeychainItem()
+    }
+
+    private static func deleteLegacyKeychainItem() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrService as String: "FAL Studio",
+            kSecAttrAccount as String: "FAL_KEY",
         ]
         SecItemDelete(query as CFDictionary)
     }
 
-    /// The key to use for API calls: FAL_KEY env var (handy for CLI testing,
-    /// mirroring the Python scripts) overrides the keychain entry.
+    /// The key to use for API calls, in priority order: FAL_KEY env var →
+    /// saved key file (Settings) → the fal skill's .env file, mirroring the
+    /// Python scripts so the app works without re-entering the key.
     static var effectiveKey: String? {
         if let env = ProcessInfo.processInfo.environment["FAL_KEY"],
            !env.trimmingCharacters(in: .whitespaces).isEmpty {
             return env.trimmingCharacters(in: .whitespaces)
         }
-        return load()
+        if let stored = load() {
+            return stored
+        }
+        return dotEnvKey()
+    }
+
+    /// Parse FAL_KEY from the same .env file the fal skill scripts use.
+    private static func dotEnvKey() -> String? {
+        let path = NSHomeDirectory() + "/.claude/skills/fal/.env"
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        for line in content.split(separator: "\n") {
+            var trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("export ") {
+                trimmed = String(trimmed.dropFirst("export ".count))
+            }
+            guard trimmed.hasPrefix("FAL_KEY"), let eq = trimmed.firstIndex(of: "=") else { continue }
+            let value = trimmed[trimmed.index(after: eq)...]
+                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            if !value.isEmpty { return value }
+        }
+        return nil
     }
 }
