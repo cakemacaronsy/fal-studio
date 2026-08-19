@@ -19,20 +19,30 @@ cat > "$STAGE/READ ME FIRST.txt" <<'EOF'
 FAL Studio — Install Notes
 ==========================
 
+REQUIRES: macOS 14 (Sonoma) or newer. Apple Silicon and Intel both work.
+
 INSTALL
 1. Drag "FAL Studio" onto the "Applications" shortcut.
-2. FIRST LAUNCH: right-click (or Control-click) FAL Studio in Applications
-   and choose "Open", then click "Open" in the dialog.
-   (Needed once because this app is not notarized by Apple.)
-   If macOS still blocks it, run this in Terminal:
-   xattr -d com.apple.quarantine "/Applications/FAL Studio.app"
+2. FIRST LAUNCH — macOS will block it once because this free app is not
+   notarized by Apple ($99/yr program). This is expected. To approve it:
+   a. Double-click FAL Studio; when macOS says it can't verify it, click Done.
+   b. Open System Settings -> Privacy & Security, scroll down, and click
+      "Open Anyway" next to the FAL Studio message, then confirm.
+   (On macOS 13/14 you can instead right-click the app -> Open -> Open.)
+   Terminal alternative that skips all dialogs:
+   xattr -dr com.apple.quarantine "/Applications/FAL Studio.app"
+3. This approval is needed only once per version.
 
 YOUR OWN API KEY (required)
 This app ships with NO API key. Generations run on your own fal.ai account:
 1. Create an account at https://fal.ai and add billing.
 2. Go to fal.ai -> Dashboard -> Keys -> create a key.
 3. In FAL Studio press Cmd+, (Settings), paste the key, click Save.
-   The key is stored only in your Mac's keychain.
+   The key is stored in a private file only your macOS account can read.
+
+UPDATES
+The app checks this project's GitHub releases automatically and shows an
+Update button in the toolbar when a newer version exists.
 
 TRY IT FREE FIRST
 Turn on "Mock mode" in Settings to explore the app with placeholder

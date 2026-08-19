@@ -46,8 +46,11 @@ final class Updater {
         return NSHomeDirectory() + "/Desktop/FAL Studio/build/Build/Products/Release/FAL Studio.app"
     }
 
+    /// Defaults to the project's public repo so every downloaded copy
+    /// auto-discovers new releases; users can point elsewhere (or blank it)
+    /// in Settings → Updates.
     var githubRepo: String {
-        get { UserDefaults.standard.string(forKey: "updateRepo") ?? "" }
+        get { UserDefaults.standard.string(forKey: "updateRepo") ?? "cakemacaronsy/fal-studio" }
         set { UserDefaults.standard.set(newValue, forKey: "updateRepo") }
     }
 
